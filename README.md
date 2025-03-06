@@ -14,10 +14,11 @@ Client-server databases will allow to install the ODBC driver (as a client only)
 driver to connect to a remote server, by specifying the server hostname in the connection string.
 
 ## Instalation
-You should install [python](https://www.python.org/downloads/), then install PySide6 and Traits with commands like
+You should install [python](https://www.python.org/downloads/), then install PySide6, Traits and pyodbc with commands like
 ```sh
 pip install PySide6
 pip install Traits
+pip install pyodbc
 ```
 
 To start the application you should start the odbc-client.py script. On Windows if python is on PATH and is configured to run .py scripts, you can just say
