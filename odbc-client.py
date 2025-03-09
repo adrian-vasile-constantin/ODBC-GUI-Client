@@ -82,7 +82,32 @@ def replaceDriverAndDsn(connectionString, newKey, newVal):
 
     newString = newString.rstrip(';')
 
-    connectionString.setText(newString)
+    if not newString == connectionString.text():
+        connectionString.setText(newString)
+
+def removeDriverOrDsn(connectionString, oldKey, oldVal):
+    props = connectionString.text().split(';')
+    connection = [ ]
+
+    for propStr in props:
+        if propStr.strip():
+            [ key, val ] = propStr.split('=', 1)
+
+            if not key.lstrip().lower() == oldKey.lower() or not val.lstrip().lower() == oldVal.lower():
+                connection.append([ key, val ])
+
+    newString = ''
+
+    for key, val in connection:
+        if val is None:
+            newString += key + ';'
+        else:
+            newString += key + '=' + val + ';'
+
+    newString = newString.rstrip(';')
+
+    if not newString == connectionString.text():
+        connectionString.setText(newString)
 
 def checkEnableDisableSourceList(dataSourceName, dsnList):
     if dataSourceName.text():
@@ -137,12 +162,18 @@ def fillDsnAndCredentials(connectionString, driverList, dsnList, usernameEdit, p
         if removeButton.isEnabled():
             removeButton.setEnabled(False)
 
+        if dsnList.currentItem():
+            removeDriverOrDsn(connectionString, 'DSN', dsnList.currentItem().text())
+
     loadCredentials(dsnList, usernameEdit, passwordEdit)
 
 def fillDriverName(connectionString, driverList, dsnList):
     if driverList.selectedItems():
         replaceDriverAndDsn(connectionString, 'Driver', driverList.currentItem().text())
         dsnList.setCurrentRow(-1)
+    else:
+        if driverList.currentItem():
+            removeDriverOrDsn(connectionString, 'Driver', driverList.currentItem().text())
 
 def updateListWidget(listWidget, newItemList):
     modified = not listWidget.count() == len(newItemList)
@@ -167,8 +198,18 @@ def odbcAdministrator(mainWindow, driverList, dsnList):
     updateListWidget(dsnList, [ val for key, val in enumerate(pyodbc.dataSources()) ])
 
 def removeDsn(mainWindow, dsnList):
+    dataSourceName = dsnList.currentItem().text()
+
     if QMessageBox.warning(mainWindow, mainWindow.tr('ODBC Client'), mainWindow.tr('Delete data source {} ?').format(dsnList.currentItem().text()), QMessageBox.Yes | QMessageBox.No) == QMessageBox.Yes:
-        QMessageBox.warning(mainWindow, mainWindow.tr('ODBC Client'), mainWindow.tr('Not implemented'), QMessageBox.Ok)
+        driverDescription = pyodbc.dataSources()[dataSourceName]
+
+        if driverDescription:
+            ODBCInst.Init()
+            result = ODBCInst.SQLConfigDataSource(int(mainWindow.effectiveWinId()), ODBCInst.ODBC_REMOVE_DSN, driverDescription, 'DSN=' + dataSourceName)
+
+            if not result:
+                QMessageBox.warning(mainWindow, mainWindow.tr('ODBC Client'), mainWindow.tr('Unable to remove data source'), QMessageBox.Ok)
+
         updateListWidget(dsnList, [ val for key, val in enumerate(pyodbc.dataSources()) ])
 
 MAIN_WINDOW_WIDTH = 700                 # Windows 10 system requirements include monitor resolution of 800x600
