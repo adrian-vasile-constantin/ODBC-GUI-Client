@@ -37,6 +37,7 @@ class ODBCInst:
 
     odbcInst = None
     SQLConfigDataSource = None
+    SQLManageDataSources = None
 
     @classmethod
     def Init(cls):
@@ -51,3 +52,7 @@ class ODBCInst:
             cls.SQLConfigDataSource = cls.odbcInst.SQLConfigDataSourceW
             cls.SQLConfigDataSource.argtypes = [ c_void_p, c_ushort, c_wchar_p, c_wchar_p ]
             cls.SQLConfigDataSource.restype = c_int
+
+            cls.SQLManageDataSources = cls.odbcInst.SQLManageDataSources
+            cls.SQLManageDataSources.argtypes = [ c_void_p ]
+            cls.SQLManageDataSources.restype = c_int
