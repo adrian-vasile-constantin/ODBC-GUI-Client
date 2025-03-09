@@ -10,6 +10,7 @@ from PySide6.QtWidgets import (
         QListWidget,
         QLabel,
         QLineEdit,
+        QCheckBox,
         QPushButton,
         QGridLayout,
         QMessageBox)
@@ -19,7 +20,7 @@ import keyring
 
 from odbc_datasource import ODBCInst
 
-def updateDataSource(mainWindow, dataSourceName, connectionString, username, password):
+def updateDataSource(mainWindow, dataSourceName, connectionString, username, password, credentialsCheckbox):
     mainWindow = int(mainWindow.effectiveWinId())
     dataSourceName = dataSourceName.text()
     connectionString = connectionString.text()
@@ -57,7 +58,8 @@ def updateDataSource(mainWindow, dataSourceName, connectionString, username, pas
             ODBCInst.Init()
             ODBCInst.SQLConfigDataSource(mainWindow, ODBCInst.ODBC_ADD_DSN, DriverName, connectionString.replace(';', '\000') + '\000\000')
 
-            keyring.set_password('odbc-client:' + dataSourceName, username, password)
+            if credentialsCheckbox.isChecked():
+                keyring.set_password('odbc-client:' + dataSourceName, username, password)
 
 def replaceDriverAndDsn(connectionString, newKey, newVal):
     props = connectionString.text().split(';')
@@ -151,16 +153,22 @@ def loadCredentials(dsnList, usernameEdit, passwordEdit):
             if passwordEdit.text():
                 passwordEdit.setText('')
 
-def fillDsnAndCredentials(connectionString, driverList, dsnList, usernameEdit, passwordEdit, removeButton):
+def fillDsnAndCredentials(connectionString, driverList, dsnList, usernameEdit, passwordEdit, removeButton, configButton):
     if dsnList.selectedItems():
         replaceDriverAndDsn(connectionString, 'DSN', dsnList.currentItem().text())
         driverList.setCurrentRow(-1)
 
         if not removeButton.isEnabled():
             removeButton.setEnabled(True)
+
+        if not configButton.isEnabled():
+            configButton.setEnabled(True)
     else:
         if removeButton.isEnabled():
             removeButton.setEnabled(False)
+
+        if configButton.isEnabled():
+            configButton.setEnabled(False)
 
         if dsnList.currentItem():
             removeDriverOrDsn(connectionString, 'DSN', dsnList.currentItem().text())
@@ -211,6 +219,21 @@ def removeDsn(mainWindow, dsnList):
                 QMessageBox.warning(mainWindow, mainWindow.tr('ODBC Client'), mainWindow.tr('Unable to remove data source'), QMessageBox.Ok)
 
         updateListWidget(dsnList, [ val for key, val in enumerate(pyodbc.dataSources()) ])
+
+def configureDsn(mainWindow, dsnList):
+    dataSourceName = dsnList.currentItem().text()
+
+    driverDescription = pyodbc.dataSources()[dataSourceName]
+
+    if driverDescription:
+        ODBCInst.Init()
+        result = ODBCInst.SQLConfigDataSource(int(mainWindow.effectiveWinId()), ODBCInst.ODBC_CONFIG_DSN, driverDescription, 'DSN=' + dataSourceName)
+
+        # if not result:
+        #     QMessageBox.warning(mainWindow, mainWindow.tr('ODBC Client'), mainWindow.tr('Unable to remove data source'), QMessageBox.Ok)
+
+    updateListWidget(dsnList, [ val for key, val in enumerate(pyodbc.dataSources()) ])
+
 
 MAIN_WINDOW_WIDTH = 700                 # Windows 10 system requirements include monitor resolution of 800x600
 MAIN_WINDOW_HEIGHT = 525                # Allow 40 to 70 pixels for Windows taskbar
@@ -284,14 +307,19 @@ def main(argv):
     connectButton.default = True
     quitButton = QPushButton(mainApp.tr('Quit'), mainWindow.centralWidget())
 
-    quitButton.pressed.connect(lambda: mainWindow.close())
-    connectButton.pressed.connect(lambda: updateDataSource(mainWindow, dataSourceName, connectionString, usernameEdit, passwordEdit))
-
     subgrid.addWidget(connectButton, 1, 4)
     subgrid.addWidget(quitButton, 1, 6)
     subgrid.setColumnStretch(0, 30)
     subgrid.setColumnStretch(2, 30)
     subgrid.setColumnStretch(3, 34)
+
+    credentialsCheckbox = QCheckBox('Save credentials in keyring / credential store', mainWindow.centralWidget())
+    credentialsCheckbox.setChecked(True)
+    subgrid.addWidget(credentialsCheckbox, 2, 0, 1, 3)
+    subgrid.addWidget(QLabel('', mainWindow.centralWidget()), 3, 0)
+
+    quitButton.pressed.connect(lambda: mainWindow.close())
+    connectButton.pressed.connect(lambda: updateDataSource(mainWindow, dataSourceName, connectionString, usernameEdit, passwordEdit, credentialsCheckbox))
 
     grid.addLayout(subgrid, 1, 0, 1, 3)
 
@@ -304,10 +332,13 @@ def main(argv):
     subgrid = QGridLayout()
     dsnManageButton = QPushButton(mainApp.tr('Manage...'), mainWindow.centralWidget())
     subgrid.addWidget(dsnManageButton, 0, 2)
+    dsnConfigButton = QPushButton(mainApp.tr('Configure...'), mainWindow.centralWidget())
+    dsnConfigButton.setEnabled(False)
+    subgrid.addWidget(dsnConfigButton, 0, 4)
     dsnRemoveButton = QPushButton(mainApp.tr('Remove'), mainWindow.centralWidget())
     dsnRemoveButton.setEnabled(False)
-    subgrid.addWidget(dsnRemoveButton, 0, 4)
-    subgrid.setColumnStretch(0, 0)
+    subgrid.addWidget(dsnRemoveButton, 0, 6)
+    subgrid.setColumnStretch(0, 1)
 
     grid.setRowStretch(3, 1)
     grid.setColumnStretch(0, 1)
@@ -319,11 +350,12 @@ def main(argv):
     usernameEdit.editingFinished.connect(lambda: checkAutoLoadCredentials(usernameEdit, passwordEdit))
     passwordEdit.editingFinished.connect(lambda: checkAutoLoadCredentials(usernameEdit, passwordEdit))
 
-    dsnList.itemSelectionChanged.connect(lambda: fillDsnAndCredentials(connectionString, driverList, dsnList, usernameEdit, passwordEdit, dsnRemoveButton))
+    dsnList.itemSelectionChanged.connect(lambda: fillDsnAndCredentials(connectionString, driverList, dsnList, usernameEdit, passwordEdit, dsnRemoveButton, dsnConfigButton))
     driverList.itemSelectionChanged.connect(lambda: fillDriverName(connectionString, driverList, dsnList))
 
     dsnManageButton.clicked.connect(lambda: odbcAdministrator(mainWindow, driverList, dsnList))
     dsnRemoveButton.clicked.connect(lambda: removeDsn(mainWindow, dsnList))
+    dsnConfigButton.clicked.connect(lambda: configureDsn(mainWindow, dsnList))
 
     mainWindow.show()
     sys.exit(mainApp.exec())
