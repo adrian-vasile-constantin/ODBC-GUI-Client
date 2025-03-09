@@ -1,0 +1,22 @@
+*	text=auto
+Makefile text
+*.php	text
+*.html	text
+*.css	text
+*.js	text
+*.cc	text
+*.c	text
+*.h	text
+*.inc	text
+*.dsc	text
+*.py	text
+*.md	text
+*.sh	text eol=lf
+*.cmd	text eol=crlf
+*.bat	text eol=crlf
+*.gif	binary
+*.jpg	binary
+*.jpeg	binary
+*.png	binary
+*.pdf	binary
+
