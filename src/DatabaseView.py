@@ -38,6 +38,7 @@ class DatabaseView(QObject):
         self.resultSplitter = QSplitter(Qt.Vertical, self.mainSplitter)
         self.mainWindow.setCentralWidget(self.mainSplitter)
         self.dbTree = QTreeWidget(self.mainSplitter)
+        self.dbTree.setAlternatingRowColors(True)
         self.sqlScripts = QTextEdit(self.resultSplitter)
         self.sqlTab = QTabWidget(self.resultSplitter)
         self.sqlOutput = QTextEdit(self.sqlTab)
@@ -79,35 +80,86 @@ class DatabaseView(QObject):
         self.conn = connection
         self.populateDatabaseObjects()
 
-    def getTypeNode(self, rootNode, containerType):
-        if not containerType in self.typeNodes:
-            self.typeNodes[containerType] = QTreeWidgetItem(rootNode, [ containerType ], 0);
+    WIDGET_TYPE_STATIC_LABEL = 0
+    WIDGET_TYPE_CATALOG = 1
+    WIDGET_TYPE_SCHEMA = 2
+    WIDGET_TYPE_TABLE_CATEGORY = 3
+    WIDGET_TYPE_TABLE = 4
+    WIDGET_TYPE_PROC = 5
 
-        return self.typeNodes[containerType]
+    def getTypeNode(self, containerEntry, typeName):
+        if not typeName in containerEntry['typeNodes']:
+            containerEntry['typeNodes'][typeName] = QTreeWidgetItem(containerEntry['item'], [ typeName ], DatabaseView.WIDGET_TYPE_STATIC_LABEL);
 
-    def getContainerNode(self, rootNode, subcontainers, name, widgetType, containerType):
+        return containerEntry['typeNodes'][typeName]
+
+    def getContainerNode(self, containerEntry, name, widgetType, dbTypeName = None):
         if not name:
-            return rootNode, subcontainers
+            return containerEntry
 
-        if not name in subcontainers:
-            subcontainers[name] = { 'item': QTreeWidgetItem(self.getTypeNode(rootNode, containerType), [ name ], widgetType), 'containers': { } }
+        if not name in containerEntry['containers']:
+            if dbTypeName:
+                containerEntry['containers'][name] = { 'item': QTreeWidgetItem(self.getTypeNode(containerEntry, dbTypeName), [ name ], widgetType), 'containers': { }, 'typeNodes': { } }
+            else:
+                containerEntry['containers'][name] = { 'item': QTreeWidgetItem(containerEntry['item'], [ name ], widgetType), 'containers': { }, 'typeNodes': { } }
 
-        return subcontainers[name]['item'], subcontainers[name]['containers']
+        return containerEntry['containers'][name]
 
 
     def addTableToDbTree(self, catalog, schema, typ, name, desc):
-        treeRoot = self.dbTree.invisibleRootItem()
-        catalogNode, schemas = self.getContainerNode(treeRoot, self.containerNodes, catalog, 1, 'Catalog')
-        schemaNode, tableTypes = self.getContainerNode(catalogNode, schemas, schema, 2, 'Schema')
-        typeNode, tables = self.getContainerNode(schemaNode, tableTypes, typ.title(), 3, 'Object type')
+        catalogNode = self.getContainerNode(self.containerNodes, catalog, DatabaseView.WIDGET_TYPE_CATALOG, 'Catalog')
+        schemaNode = self.getContainerNode(catalogNode, schema, DatabaseView.WIDGET_TYPE_SCHEMA, 'Schema')
+        tableTypeNode = self.getContainerNode(schemaNode, typ.title(), DatabaseView.WIDGET_TYPE_TABLE_CATEGORY)
 
-        QTreeWidgetItem(typeNode, [ name ], 4)
+        QTreeWidgetItem(tableTypeNode['item'], [ name ], DatabaseView.WIDGET_TYPE_TABLE)
+
+    def addProcToDbTree(self, row, listContainer):
+        catalog, schema, name, input_params, output_params, num_result_sets, desc, typ = row[0], row[1], row[2].rstrip('()') + '()', row[3], row[4], row[5], row[6], row[7]
+        catalogNode = self.getContainerNode(self.containerNodes, catalog, DatabaseView.WIDGET_TYPE_CATALOG, 'Catalog')
+        schemaNode = self.getContainerNode(catalogNode, schema, DatabaseView.WIDGET_TYPE_SCHEMA, 'Schema')
+        procNode = self.getContainerNode(schemaNode, 'Procedure', DatabaseView.WIDGET_TYPE_STATIC_LABEL)
+
+        if not [ catalog, schema, name ] in listContainer:
+            QTreeWidgetItem(procNode['item'], [ name ], DatabaseView.WIDGET_TYPE_PROC)
+            listContainer.append([ catalog, schema, name ])
+
+    def expandDbTree(self, containerEntry):
+        itemList = [ containerEntry['item'] ]
+
+        if containerEntry['typeNodes']:
+            itemList.extend([ val for key, val in containerEntry['typeNodes'].items() ])
+
+        for item in itemList:
+            # do not expand system tables and views
+            if item.childCount() <= 10 and item.type() == DatabaseView.WIDGET_TYPE_TABLE_CATEGORY and item.text(0) in [ 'System View', 'System Table', 'System' ]:
+                break;
+
+            # Expand all nodes with 10 children or less, and expand all 'Schema' and 'Catalog' nodes
+            if item.childCount() <= 10 or (item.type() == DatabaseView.WIDGET_TYPE_STATIC_LABEL and item.text(0) in [ 'Catalog', 'Schema' ]):
+                item.setExpanded(True)
+
+            # Expand 'Table' nodes with 100 children or less
+            if item.childCount() <= 100 and item.type() == DatabaseView.WIDGET_TYPE_TABLE_CATEGORY and item.text(0) == 'Table':
+                item.setExpanded(True)
+
+            if item.childCount() < 25 and item.type() == DatabaseView.WIDGET_TYPE_TABLE_CATEGORY and item.text(0) in [ 'Global Temporary', 'Local Temporary', 'Global Temporary Table', 'Local Temporary Table' ]:
+                item.setExpanded(True)
+
+        for name in containerEntry['containers']:
+            self.expandDbTree(containerEntry['containers'][name])
 
     def populateDatabaseObjects(self):
-        self.containerNodes = { }
-        self.typeNodes = { }
+        self.containerNodes = { 'item': self.dbTree.invisibleRootItem(), 'containers': { }, 'typeNodes': { } }
 
         for catalog, schema, name, typ, desc in self.conn.cursor().tables():
             self.addTableToDbTree(catalog, schema, typ, name, desc)
+
+        listContainer = [ ]
+
+        rows = self.conn.cursor().procedures()
+        for row in rows:
+            self.addProcToDbTree(row, listContainer)
+
+        self.expandDbTree(self.containerNodes)
 
 DatabaseView.closeView = Signal(DatabaseView)

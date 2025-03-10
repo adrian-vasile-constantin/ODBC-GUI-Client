@@ -18,7 +18,7 @@ import traits
 import pyodbc
 import keyring
 
-from src.odbc_datasource import ODBCInst
+from src.ODBCInst import ODBCInst
 from src.DatabaseView import DatabaseView
 
 def readDataSourceName(connectionString):
@@ -46,10 +46,10 @@ def updateDataSource(mainWindow, dataSourceName, connectionString, username, pas
         if DriverName is not None:
             connectionString = ''
 
-            if len(username):
+            if username:
                 connection['UID'] = username
 
-            if len(password):
+            if password:
                 connection['PWD'] = password
 
             connection['DSN'] = dataSourceName
@@ -95,8 +95,10 @@ def newConnection(mainWindow, dataSourceName, connectionString, username, passwo
 
         connection = pyodbc.connect(connectionString, **kwArgs)
 
-        for catalog, schema, name, typ, desc in connection.cursor().tables():
-            print('(Catalog: {}, Schema: {},  Name: {}, Type: {}, Description: {}'.format(catalog, schema, name, typ, desc))
+        rows = connection.cursor().procedures()
+        for row in rows:
+            catalog, schema, name, input_params, output_params, num_result_sets, desc, typ = row[0], row[1], row[2], row[3], row[4], row[5], row[6], row[7]
+            print('(Catalog: {}, Schema: {}, Type: {}, Name: {}, ResultSets: {}, In params: {}, Out params: {}, Description: {}'.format(catalog, schema, typ, name, num_result_sets, input_params, output_params, desc))
 
         global autoLoadCredentials
         global dbViews
