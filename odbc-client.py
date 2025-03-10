@@ -18,16 +18,20 @@ import traits
 import pyodbc
 import keyring
 
-from odbc_datasource import ODBCInst
+from src.odbc_datasource import ODBCInst
+from src.DatabaseView import DatabaseView
+
+def readDataSourceName(connectionString):
+    for prop in connectionString.split(';'):
+        [ key, val ] = prop.split('=', 1)
+
+        if key.lstrip().lower() == 'dsn':
+            return val.lstrip()
+
+    return None
 
 def updateDataSource(mainWindow, dataSourceName, connectionString, username, password, credentialsCheckbox):
-    mainWindow = int(mainWindow.effectiveWinId())
-    dataSourceName = dataSourceName.text()
-    connectionString = connectionString.text()
-    username = username.text()
-    password = password.text()
-
-    if len(dataSourceName) and len(connectionString):
+    if dataSourceName and connectionString:
         DriverName = None
         connection = { }
 
@@ -58,8 +62,56 @@ def updateDataSource(mainWindow, dataSourceName, connectionString, username, pas
             ODBCInst.Init()
             ODBCInst.SQLConfigDataSource(mainWindow, ODBCInst.ODBC_ADD_DSN, DriverName, connectionString.replace(';', '\000') + '\000\000')
 
-            if credentialsCheckbox.isChecked():
+            if credentialsCheckbox:
                 keyring.set_password('odbc-client:' + dataSourceName, username, password)
+
+dbViews = [ ]
+autoLoadCredentials = True
+
+def closeDbView(databaseView):
+    global dbViews
+
+    dbViews.remove(databaseView)
+
+def newConnection(mainWindow, dataSourceName, connectionString, username, password, credentialsCheckbox):
+    mainWindow = int(mainWindow.effectiveWinId())
+    dataSourceName = dataSourceName.text()
+    connectionString = connectionString.text()
+    username = username.text()
+    password = password.text()
+    credentialsCheckbox = credentialsCheckbox.isChecked()
+
+    if dataSourceName:
+        updateDataSource(mainWindow, dataSourceName, connectionString, username, password, credentialsCheckbox)
+
+    if connectionString:
+        kwArgs = { }
+
+        if username:
+            kwArgs['UID'] = username
+
+        if password:
+            kwArgs['PWD'] = password
+
+        connection = pyodbc.connect(connectionString, **kwArgs)
+
+        for catalog, schema, name, typ, desc in connection.cursor().tables():
+            print('(Catalog: {}, Schema: {},  Name: {}, Type: {}, Description: {}'.format(catalog, schema, name, typ, desc))
+
+        global autoLoadCredentials
+        global dbViews
+
+        if not dataSourceName and not autoLoadCredentials and (username or password) and credentialsCheckbox:
+            dataSourceName = readDataSourceName(connectionString)
+
+            if dataSourceName:
+                keyring.set_password('odbc-client:' + dataSourceName, username, password)
+
+        if not dataSourceName:
+            dataSourceName = readDataSourceName(connectionString)
+
+        dbViews.append(DatabaseView(connection, dataSourceName))
+        dbViews[-1].closeView.connect(lambda databaseView: closeDbView(databaseView))
 
 def replaceDriverAndDsn(connectionString, newKey, newVal):
     props = connectionString.text().split(';')
@@ -119,8 +171,6 @@ def checkEnableDisableSourceList(dataSourceName, dsnList):
     else:
         if not dsnList.isEnabled():
             dsnList.setEnabled(True)
-
-autoLoadCredentials = True
 
 def checkAutoLoadCredentials(usernameEdit, passwordEdit):
     global autoLoadCredentials
@@ -218,7 +268,15 @@ def removeDsn(mainWindow, dsnList):
             if not result:
                 QMessageBox.warning(mainWindow, mainWindow.tr('ODBC Client'), mainWindow.tr('Unable to remove data source'), QMessageBox.Ok)
 
-        updateListWidget(dsnList, [ val for key, val in enumerate(pyodbc.dataSources()) ])
+        newDataSourceList = [ val for key, val in enumerate(pyodbc.dataSources()) ]
+
+        updateListWidget(dsnList, newDataSourceList)
+
+        if not dataSourceName in newDataSourceList:
+            credential = keyring.get_credential('odbc-client:' + dataSourceName, None)
+
+            if credential:
+                keyring.delete_password('odbc-client:' + dataSourceName, credential.username)
 
 def configureDsn(mainWindow, dsnList):
     dataSourceName = dsnList.currentItem().text()
@@ -236,7 +294,7 @@ def configureDsn(mainWindow, dsnList):
 
 
 MAIN_WINDOW_WIDTH = 700                 # Windows 10 system requirements include monitor resolution of 800x600
-MAIN_WINDOW_HEIGHT = 525                # Allow 40 to 70 pixels for Windows taskbar
+MAIN_WINDOW_HEIGHT = 550                # Allow 50 pixels for Windows taskbar
 
 def resizeMainWindow(mainWindow):
     wndSize = mainWindow.size()
@@ -263,6 +321,7 @@ def main(argv):
     mainApp = QApplication(argv)
     mainWindow = QMainWindow()
     mainWindow.setCentralWidget(MainPanel(mainWindow))
+    mainWindow.setWindowTitle('ODBC Client')
 
     driverList = QListWidget(mainWindow.centralWidget())
     dsnList = QListWidget(mainWindow.centralWidget())
@@ -319,7 +378,7 @@ def main(argv):
     subgrid.addWidget(QLabel('', mainWindow.centralWidget()), 3, 0)
 
     quitButton.pressed.connect(lambda: mainWindow.close())
-    connectButton.pressed.connect(lambda: updateDataSource(mainWindow, dataSourceName, connectionString, usernameEdit, passwordEdit, credentialsCheckbox))
+    connectButton.pressed.connect(lambda: newConnection(mainWindow, dataSourceName, connectionString, usernameEdit, passwordEdit, credentialsCheckbox))
 
     grid.addLayout(subgrid, 1, 0, 1, 3)
 

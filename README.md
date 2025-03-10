@@ -1,11 +1,11 @@
 # odbc-client-app
-GUI client application for ODBC databases (Qt and python)
+GUI client application for ODBC databases (using Qt and python)
 
-Conect to a database or data source using on ODBC connection string or ODBC data source name (DSN), and test and run any SQL queries supported by the data source.
+Conect to a database or a data source using an ODBC connection string or an ODBC data source name (DSN), and test and run any SQL queries supported by the data source.
 
-Some aditional features like list of existing functions, tables and views are also available (some drivers may return an empty list if the product does not support views for example).
+Some aditional features like list of existing functions, tables and views are also available (some drivers return an empty list if the product does not support views for example).
 
-If you have the connection details like a database name, server hostname, username, etc, you can make a connection string according to the documentation of your database
+If you have the connection details like a database name, server hostname, username, etc, you can build a connection string according to the documentation of your database
 ODBC driver. The resulting connection string can be saved as a data source name (DSN) for reconnecting later with the same connection information.
 
 All major databases publish an ODBC driver for their product. Microsoft for example makes available ODBC drivers for reading Excel spreadsheets or Access databases,
