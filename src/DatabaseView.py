@@ -39,6 +39,7 @@ class DatabaseView(QObject):
         self.mainWindow.setCentralWidget(self.mainSplitter)
         self.dbTree = QTreeWidget(self.mainSplitter)
         self.dbTree.setAlternatingRowColors(True)
+        self.dbTree.setHeaderHidden(True)
         self.sqlScripts = QTextEdit(self.resultSplitter)
         self.sqlTab = QTabWidget(self.resultSplitter)
         self.sqlOutput = QTextEdit(self.sqlTab)

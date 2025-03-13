@@ -95,10 +95,10 @@ def newConnection(mainWindow, dataSourceName, connectionString, username, passwo
 
         connection = pyodbc.connect(connectionString, **kwArgs)
 
-        rows = connection.cursor().procedures()
-        for row in rows:
-            catalog, schema, name, input_params, output_params, num_result_sets, desc, typ = row[0], row[1], row[2], row[3], row[4], row[5], row[6], row[7]
-            print('(Catalog: {}, Schema: {}, Type: {}, Name: {}, ResultSets: {}, In params: {}, Out params: {}, Description: {}'.format(catalog, schema, typ, name, num_result_sets, input_params, output_params, desc))
+        # rows = connection.cursor().procedures()
+        # for row in rows:
+        #     catalog, schema, name, input_params, output_params, num_result_sets, desc, typ = row[0], row[1], row[2], row[3], row[4], row[5], row[6], row[7]
+        #     print('(Catalog: {}, Schema: {}, Type: {}, Name: {}, ResultSets: {}, In params: {}, Out params: {}, Description: {}'.format(catalog, schema, typ, name, num_result_sets, input_params, output_params, desc))
 
         global autoLoadCredentials
         global dbViews
