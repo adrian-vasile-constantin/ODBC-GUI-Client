@@ -295,7 +295,7 @@ def main(argv):
 
     grid.addLayout(subgrid, 1, 0, 1, 3)
 
-    grid.addWidget(QLabel(mainApp.tr('ODBC Drivers:'), mainWindow.centralWidget()), 2, 0)
+    grid.addWidget(QLabel(mainApp.tr('Installed ODBC Drivers:'), mainWindow.centralWidget()), 2, 0)
     grid.addWidget(driverList, 3, 0, 2, 1)
 
     grid.addWidget(QLabel(mainApp.tr('Data Sources:'), mainWindow.centralWidget()), 2, 2)
