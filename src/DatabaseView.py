@@ -1,6 +1,7 @@
 import pyodbc
 
 from PySide6.QtCore import Qt, QObject, Signal
+from PySide6.QtGui import QTextOption
 from PySide6.QtWidgets import (
         QWidget,
         QToolButton,
@@ -10,6 +11,8 @@ from PySide6.QtWidgets import (
         QTabBar,
         QTabWidget,
         QTableWidget,
+        QTableWidgetItem,
+        QAbstractItemView,
         QTextEdit,
         QSplitter,
         QSplitterHandle,
@@ -23,6 +26,29 @@ class DbViewMainWindow(QMainWindow):
     def closeEvent(self, ev):
         self.parentObj.closeView.emit(self.parentObj)
         ev.accept()
+
+class SQLEditorWidget(QTextEdit):
+    executeStatement = None       # signal to execute current statement
+    executeScript = None
+
+    def __init__(self, parent = None):
+        super().__init__(parent)
+
+    def keyPressEvent(self, ev):
+        if ev.key() == Qt.Key_Enter or ev.key() == Qt.Key_Return:
+            if ev.modifiers() == Qt.ControlModifier:
+                self.executeStatement.emit(self, self.textCursor().selectedText())
+                self.textCursor().setPosition(self.textCursor().selectionEnd())     # un-select query text
+                ev.accept()
+            else:
+                if ev.modifiers() == Qt.ControlModifier | Qt.AltModifier:
+                    self.executeScript.emit(self, self.toPlainText())
+                    ev.accept()
+
+        super().keyPressEvent(ev)
+
+SQLEditorWidget.executeStatement = Signal(SQLEditorWidget, str)
+SQLEditorWidget.executeScript = Signal(SQLEditorWidget, str)
 
 class DatabaseView(QObject):
     MAIN_WINDOW_WIDTH = 700                 # Windows 10 system requirements include monitor resolution of 800x600
@@ -40,13 +66,19 @@ class DatabaseView(QObject):
         self.dbTree = QTreeWidget(self.mainSplitter)
         self.dbTree.setAlternatingRowColors(True)
         self.dbTree.setHeaderHidden(True)
-        self.sqlScripts = QTextEdit(self.resultSplitter)
+        self.sqlScripts = SQLEditorWidget(self.resultSplitter)
+        self.sqlScripts.setWordWrapMode(QTextOption.NoWrap)
         self.sqlTab = QTabWidget(self.resultSplitter)
-        self.sqlOutput = QTextEdit(self.sqlTab)
+        self.resultTab = QTabWidget(self.resultSplitter)
+        self.queryResult = QTableWidget(self.resultSplitter)
+        self.queryResult.setSelectionBehavior(QAbstractItemView.SelectRows)
+        self.sqlOutput = QTextEdit(self.resultTab)
         self.sqlOutput.setReadOnly(True)
 
-        self.sqlTab.addTab(self.sqlScripts, 'SQL')
+        self.sqlTab.addTab(self.sqlScripts, self.mainWindow.tr('SQL', 'tab-title'))
         self.sqlTab.addTab(QWidget(), '')
+        self.resultTab.addTab(self.sqlOutput, self.mainWindow.tr('Output', 'tab-title'))
+        self.resultTab.addTab(self.queryResult, self.mainWindow.tr('Result', 'tab-title'))
 
         self.nb = QToolButton()
         self.nb.setText('+') # you could set an icon instead of text
@@ -56,13 +88,16 @@ class DatabaseView(QObject):
         self.sqlTab.setTabsClosable(True)
         self.sqlTab.setUsesScrollButtons(True)
         self.resultSplitter.addWidget(self.sqlTab)
-        self.resultSplitter.addWidget(self.sqlOutput)
+        self.resultSplitter.addWidget(self.resultTab)
+
+        self.resultSplitter.setStretchFactor(0, 1)
+        self.resultSplitter.setStretchFactor(1, 3)
 
         self.mainSplitter.addWidget(self.dbTree)
         self.mainSplitter.addWidget(self.resultSplitter)
 
-        self.mainSplitter.setStretchFactor(0, 2)
-        self.mainSplitter.setStretchFactor(1, 3)
+        self.mainSplitter.setStretchFactor(0, 1)
+        self.mainSplitter.setStretchFactor(1, 2)
 
         wndSize = self.mainWindow.size()
 
@@ -80,6 +115,10 @@ class DatabaseView(QObject):
         self.mainWindow.show()
         self.conn = connection
         self.populateDatabaseObjects()
+
+        self.sqlScripts.setFocus()
+        self.sqlScripts.executeStatement.connect(lambda editorWidget, queryStr: self.runQuery(queryStr, False, self.conn, self.sqlOutput, self.queryResult))
+        self.sqlScripts.executeScript.connect(lambda editorWidget, queryStr: self.runQuery(queryStr, True, self.conn, self.sqlOutput, self.queryResult))
 
     WIDGET_TYPE_STATIC_LABEL = 0
     WIDGET_TYPE_CATALOG = 1
@@ -162,5 +201,45 @@ class DatabaseView(QObject):
             self.addProcToDbTree(row, listContainer)
 
         self.expandDbTree(self.containerNodes)
+
+    def runQuery(self, queryStr, isFullScript, conn, outputWidget, resultWidget):
+        print("Run query " + queryStr)
+
+        if not isFullScript:
+            cursor = conn.cursor()
+            cursor.execute(queryStr)
+
+            if cursor.messages:
+                for [ msgType, msgLine ] in cursor.messages:
+                    outputWidget.append(msgType + ' ' + msgLine)
+
+            if cursor.description:
+                resultWidget.setColumnCount(len(cursor.description))
+                resultWidget.setHorizontalHeaderLabels([ col[0] for col in cursor.description ])
+
+                rowNumber = 0
+                columnRange = range(len(cursor.description))
+
+                for row in cursor:
+                    if resultWidget.rowCount() <= rowNumber:
+                        resultWidget.insertRow(rowNumber)
+
+                    for col in columnRange:
+                        resultWidget.setItem(rowNumber, col, QTableWidgetItem(str(row[col])))
+
+                    rowNumber = rowNumber + 1
+
+                    if rowNumber >= 1000:
+                        break
+
+                resultWidget.setRowCount(rowNumber)
+
+            if cursor.description:
+                self.resultTab.setCurrentIndex(1)
+            else:
+                resultWidget.clear()
+                resultWidget.setColumnCount(0)
+                resultWidget.setRowCount(0)
+                self.resultTab.setCurrentIndex(0)
 
 DatabaseView.closeView = Signal(DatabaseView)
