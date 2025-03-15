@@ -30,6 +30,24 @@ def readDataSourceName(connectionString):
 
     return None
 
+def splitConnectionString(connectionString):
+    properties = [ ]
+    dsn = None
+    dsnProp = None
+
+    for prop in connectionString.split(';'):
+        [ key, val ]= prop.split('=', 1)
+
+        if key.lstrip().lower() == 'dsn':
+            dsn = val.lstrip()
+        else:
+            if key.lstrip().lower() == 'pwd' or key.lstrip().lower() == 'password':
+                pass
+            else:
+                properties.append(key.lstrip() + '=' + val.lstrip())
+
+    return dsn, ';'.join(properties)
+
 def updateDataSource(mainWindow, dataSourceName, connectionString, username, password, credentialsCheckbox):
     if dataSourceName and connectionString:
         DriverName = None
@@ -109,10 +127,9 @@ def newConnection(mainWindow, dataSourceName, connectionString, username, passwo
             if dataSourceName:
                 keyring.set_password('odbc-client:' + dataSourceName, username, password)
 
-        if not dataSourceName:
-            dataSourceName = readDataSourceName(connectionString)
+        dsn, extraConnectionString = splitConnectionString(connectionString)
 
-        dbViews.append(DatabaseView(connection, dataSourceName))
+        dbViews.append(DatabaseView(connection, dsn, extraConnectionString))
         dbViews[-1].closeView.connect(lambda databaseView: closeDbView(databaseView))
 
 def replaceDriverAndDsn(connectionString, newKey, newVal):

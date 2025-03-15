@@ -1,6 +1,6 @@
 import pyodbc
 
-from PySide6.QtCore import Qt, QObject, Signal
+from PySide6.QtCore import Qt, QObject, Signal, QSettings
 from PySide6.QtGui import QTextOption
 from PySide6.QtWidgets import (
         QWidget,
@@ -33,6 +33,7 @@ class SQLEditorWidget(QTextEdit):
 
     def __init__(self, parent = None):
         super().__init__(parent)
+        self.filename = ''
 
     def keyPressEvent(self, ev):
         if ev.key() == Qt.Key_Enter or ev.key() == Qt.Key_Return:
@@ -56,7 +57,7 @@ class DatabaseView(QObject):
 
     closeView = None                        # Signal(DatabaseView)
 
-    def __init__(self, connection, dataSourceName):
+    def __init__(self, connection, dataSourceName, extraConnectionString):
         super().__init__()
 
         self.mainWindow = DbViewMainWindow(self)
@@ -109,10 +110,29 @@ class DatabaseView(QObject):
 
         self.mainWindow.resize(wndSize)
 
+        readOnly = connection.getinfo(pyodbc.SQL_DATA_SOURCE_READ_ONLY)
+
         if dataSourceName:
-            self.mainWindow.setWindowTitle(dataSourceName)
+            if extraConnectionString:
+                title = dataSourceName + ', ...'
+            else:
+                title = dataSourceName
+
+            if readOnly:
+                title += ' - ' + 'Read Only'
+        else:
+            dbmsName = connection.getinfo(pyodbc.SQL_DBMS_NAME)
+            dbName = connection.getinfo(pyodbc.SQL_DATABASE_NAME)
+
+            if readOnly:
+                title = dbName + ' - ' + 'Read Only' + ' - ' + dbmsName
+            else:
+                title = dbName + ' - ' + dbmsName
+
+        self.mainWindow.setWindowTitle(title)
 
         self.mainWindow.show()
+        self.extraConnectionString = extraConnectionString
         self.conn = connection
         self.populateDatabaseObjects()
 
