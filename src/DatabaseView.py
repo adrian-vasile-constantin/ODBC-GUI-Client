@@ -1,6 +1,7 @@
+from crc import Calculator, Crc64
 import pyodbc
 
-from PySide6.QtCore import Qt, QObject, Signal, QSettings
+from PySide6.QtCore import Qt, QObject, Signal, QSettings, QStandardPaths, QDir
 from PySide6.QtGui import QTextOption
 from PySide6.QtWidgets import (
         QWidget,
@@ -261,5 +262,22 @@ class DatabaseView(QObject):
                 resultWidget.setColumnCount(0)
                 resultWidget.setRowCount(0)
                 self.resultTab.setCurrentIndex(0)
+
+    def loadSettings(dataSourceName, extraConnectionString):
+        appDataPath = QStandardPaths.standarLocation(QStandardPaths.AppData)
+
+        if appDataPath:
+            appDataPath = appDataPath[0];
+
+            configBasename = ''
+
+            if dataSourceName:
+                configBasename += dataSourceName
+            else:
+                configBasename += 'conn'
+
+            if extraConnectionString:
+                configBasename
+            settings = QSettings(QDir(appDataPath) '/ODBC Client/' + (dataSourceName if dataSourceName else 'conn') + ('-' + Calculator(Crc64.CRC64).checksum(extraConnectionString) if extraConnectionString else ''))
 
 DatabaseView.closeView = Signal(DatabaseView)
