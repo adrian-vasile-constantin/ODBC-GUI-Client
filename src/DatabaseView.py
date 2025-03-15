@@ -1,7 +1,7 @@
 from crc import Calculator, Crc64
 import pyodbc
 
-from PySide6.QtCore import Qt, QObject, Signal, QSettings, QStandardPaths, QDir
+from PySide6.QtCore import Qt, QObject, Signal, QSettings, QStandardPaths, QDir, QByteArray
 from PySide6.QtGui import QTextOption
 from PySide6.QtWidgets import (
         QWidget,
@@ -113,6 +113,9 @@ class DatabaseView(QObject):
 
         readOnly = connection.getinfo(pyodbc.SQL_DATA_SOURCE_READ_ONLY)
 
+        dbmsName = connection.getinfo(pyodbc.SQL_DBMS_NAME)
+        dbmsVersion = connection.getinfo(pyodbc.SQL_DBMS_VER)
+
         if dataSourceName:
             if extraConnectionString:
                 title = dataSourceName + ', ...'
@@ -122,17 +125,17 @@ class DatabaseView(QObject):
             if readOnly:
                 title += ' - ' + 'Read Only'
         else:
-            dbmsName = connection.getinfo(pyodbc.SQL_DBMS_NAME)
             dbName = connection.getinfo(pyodbc.SQL_DATABASE_NAME)
 
             if readOnly:
-                title = dbName + ' - ' + 'Read Only' + ' - ' + dbmsName
+                title = dbName + ' - ' + 'Read Only'
             else:
-                title = dbName + ' - ' + dbmsName
+                title = dbName
+
+        title += ' - ' + dbmsName + ' ' + dbmsVersion
 
         self.mainWindow.setWindowTitle(title)
 
-        self.mainWindow.show()
         self.extraConnectionString = extraConnectionString
         self.conn = connection
         self.populateDatabaseObjects()
@@ -140,6 +143,12 @@ class DatabaseView(QObject):
         self.sqlScripts.setFocus()
         self.sqlScripts.executeStatement.connect(lambda editorWidget, queryStr: self.runQuery(queryStr, False, self.conn, self.sqlOutput, self.queryResult))
         self.sqlScripts.executeScript.connect(lambda editorWidget, queryStr: self.runQuery(queryStr, True, self.conn, self.sqlOutput, self.queryResult))
+
+        self.loadSettings(dataSourceName, extraConnectionString)
+
+        self.closeView.connect(lambda dbView: dbView.saveSettings())
+
+        self.mainWindow.show()
 
     WIDGET_TYPE_STATIC_LABEL = 0
     WIDGET_TYPE_CATALOG = 1
@@ -263,21 +272,37 @@ class DatabaseView(QObject):
                 resultWidget.setRowCount(0)
                 self.resultTab.setCurrentIndex(0)
 
-    def loadSettings(dataSourceName, extraConnectionString):
-        appDataPath = QStandardPaths.standarLocation(QStandardPaths.AppData)
+    def loadSettings(self, dataSourceName, extraConnectionString):
+        appDataPath = QStandardPaths.standardLocations(QStandardPaths.AppDataLocation)
 
         if appDataPath:
             appDataPath = appDataPath[0];
 
-            configBasename = ''
+            self.configBasename = ''
 
             if dataSourceName:
-                configBasename += dataSourceName
+                self.configBasename += dataSourceName
             else:
-                configBasename += 'conn'
+                self.configBasename += 'conn'
 
             if extraConnectionString:
-                configBasename
-            settings = QSettings(QDir(appDataPath) '/ODBC Client/' + (dataSourceName if dataSourceName else 'conn') + ('-' + Calculator(Crc64.CRC64).checksum(extraConnectionString) if extraConnectionString else ''))
+                self.configBasename += '-' + hex(Calculator(Crc64.CRC64).checksum(extraConnectionString.encode()))[2:].zfill(16)
+
+            self.settings = QSettings(appDataPath + '/ODBC Client/' + self.configBasename + '.ini', QSettings.IniFormat)
+
+            mainWindowGeometry = self.settings.value('DatabaseView/geometry', QByteArray())
+
+            if mainWindowGeometry:
+                self.mainWindow.restoreGeometry(mainWindowGeometry)
+
+            mainWindowState = self.settings.value('DatabaseView/windowState', QByteArray())
+
+            if mainWindowState:
+                self.mainWindow.restoreState(mainWindowState)
+
+    def saveSettings(self):
+        if self.settings:
+            self.settings.setValue('DatabaseView/geometry', self.mainWindow.saveGeometry())
+            self.settings.setValue('DatabaseView/windowState', self.mainWindow.saveState())
 
 DatabaseView.closeView = Signal(DatabaseView)

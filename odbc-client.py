@@ -36,15 +36,16 @@ def splitConnectionString(connectionString):
     dsnProp = None
 
     for prop in connectionString.split(';'):
-        [ key, val ]= prop.split('=', 1)
+        if prop.lstrip():
+            [ key, val ]= prop.split('=', 1)
 
-        if key.lstrip().lower() == 'dsn':
-            dsn = val.lstrip()
-        else:
-            if key.lstrip().lower() == 'pwd' or key.lstrip().lower() == 'password':
-                pass
+            if key.lstrip().lower() == 'dsn':
+                dsn = val.lstrip()
             else:
-                properties.append(key.lstrip() + '=' + val.lstrip())
+                if key.lstrip().lower() == 'pwd' or key.lstrip().lower() == 'password':
+                    pass
+                else:
+                    properties.append(key.lstrip() + '=' + val.lstrip())
 
     return dsn, ';'.join(properties)
 
