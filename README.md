@@ -1,4 +1,4 @@
-# odbc-client-app
+# ODBC Client
 GUI client application for ODBC databases (using Qt and python)
 
 Conect to a database or a data source using an ODBC connection string or an ODBC data source name (DSN), and test and run any SQL queries supported by the data source.
@@ -15,12 +15,18 @@ Client-server databases let you install the ODBC driver (as a client only) witho
 driver to connect to a remote server, by specifying the server hostname in the connection string.
 
 ## Instalation
-You should install [python](https://www.python.org/downloads/), then install PySide6, Traits and pyodbc with commands like
+On Windows you should install [python](https://www.python.org/downloads/), then install PySide6, Traits and pyodbc with commands like
 ```sh
 pip install PySide6
 pip install Traits
 pip install pyodbc
 ```
+
+On Linux systems using the distribution packages is preferred. For example if your distribution uses rpms:
+```sh
+dnf install python3-pyside6 python3-Traits python3-pyodbc
+```
+if your distribution does not have a package (like python3-pyside6), you can still use the pip command above to install it
 
 To start the application you should run the odbc-client.py script. On Windows if python is on PATH and is configured to run .py scripts, you can just say
 ```cmd
@@ -41,4 +47,4 @@ from the main project directory.
 !["See database objects in a tree and run simple query on the MS SQL Server connection"](screenshots/QueryWindow.png "See database tables and run new queries")
 
 ## Sample application only
-This application is only meant for learning and parcticing Qt and python bindings, so it is not a full-blown database client with all possible features.
+This application is only meant for learning and parcticing Qt and python bindings, so it is not a full-blown database client with all possible features ('though I wish it could be).
