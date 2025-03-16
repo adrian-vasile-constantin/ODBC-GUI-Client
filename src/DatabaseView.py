@@ -117,6 +117,11 @@ class DatabaseView(QObject):
         dbmsName = connection.getinfo(pyodbc.SQL_DBMS_NAME)
         dbmsVersion = connection.getinfo(pyodbc.SQL_DBMS_VER)
 
+        versionMatch = re.match('^([0-9.]+)\\s+([^0-9]+)\\s+([0-9.]+)$', dbmsVersion)   # '11.00.0007 Mimer SQL 10.0.7'
+
+        if dbmsName == 'Mimer SQL' and versionMatch and versionMatch.group(2) == dbmsName:
+            dbmsVersion = versionMatch.group(3)
+
         if dataSourceName:
             if extraConnectionString:
                 title = dataSourceName + ', ...'

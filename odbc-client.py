@@ -71,15 +71,21 @@ def updateDataSource(mainWindow, dataSourceName, connectionString, username, pas
             if password:
                 connection['PWD'] = password
 
-            connection['DSN'] = dataSourceName
-
             for key, val in connection.items():
                 connectionString += key + '=' + val + ';'
 
+            connectionString = 'DSN=' + dataSourceName + ';' + connectionString
             connectionString = connectionString.rstrip(';')
 
             ODBCInst.Init()
-            ODBCInst.SQLConfigDataSource(mainWindow, ODBCInst.ODBC_ADD_DSN, DriverName, connectionString.replace(';', '\000') + '\000\000')
+            addDsnSuccess = ODBCInst.SQLConfigDataSource(int(mainWindow.effectiveWinId()), ODBCInst.ODBC_ADD_DSN, DriverName, connectionString.replace(';', '\000') + '\000\000')
+
+            if not addDsnSuccess:
+                QMessageBox.warning(
+                        mainWindow,
+                        mainWindow.tr('ODBC Client'),
+                        mainWindow.tr('Unable to add new data source {} for driver {}\nTry using the system ODBC Driver Manager instead (Manage DSNs button)').format(dataSourceName, DriverName),
+                        QMessageBox.Ok)
 
             if credentialsCheckbox:
                 keyring.set_password('odbc-client:' + dataSourceName, username, password)
@@ -93,7 +99,6 @@ def closeDbView(databaseView):
     dbViews.remove(databaseView)
 
 def newConnection(mainWindow, dataSourceName, connectionString, username, password, credentialsCheckbox):
-    mainWindow = int(mainWindow.effectiveWinId())
     dataSourceName = dataSourceName.text()
     connectionString = connectionString.text()
     username = username.text()
@@ -414,12 +419,12 @@ def main(argv):
     grid.addWidget(dsnList, 3, 2)
 
     subgrid = QGridLayout()
-    dsnManageButton = QPushButton(mainApp.tr('Manage...'), mainWindow.centralWidget())
+    dsnManageButton = QPushButton(mainApp.tr('Manage DSNs ...'), mainWindow.centralWidget())
     subgrid.addWidget(dsnManageButton, 0, 2)
-    dsnConfigButton = QPushButton(mainApp.tr('Configure...'), mainWindow.centralWidget())
+    dsnConfigButton = QPushButton(mainApp.tr('Configure DSN ...'), mainWindow.centralWidget())
     dsnConfigButton.setEnabled(False)
     subgrid.addWidget(dsnConfigButton, 0, 4)
-    dsnRemoveButton = QPushButton(mainApp.tr('Remove'), mainWindow.centralWidget())
+    dsnRemoveButton = QPushButton(mainApp.tr('Remove DSN'), mainWindow.centralWidget())
     dsnRemoveButton.setEnabled(False)
     subgrid.addWidget(dsnRemoveButton, 0, 6)
     subgrid.setColumnStretch(0, 1)

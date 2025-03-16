@@ -32,5 +32,13 @@ python odbc-client.py
 ```
 from the main project directory.
 
+## Screenshots
+### Connection dialog
+!["Explicit connection string for MS SQL Server Express edition"](screenshots/ConnectionDialog1.png "Save connection string as DSN")
+### Connection dialog
+!["Connect to existing DSN for MS SQL Server Express edition"](screenshots/ConnectionDialog2.png "Connect to DSN")
+### Query window
+!["See database objects in a tree and run simple query on the MS SQL Server connection"](screenshots/QueryWindow.png "See database tables and run new queries")
+
 ## Sample application only
 This application is only meant for learning and parcticing Qt and python bindings, so it is not a full-blown database client with all possible features.
