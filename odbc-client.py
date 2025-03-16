@@ -339,6 +339,11 @@ class MainPanel(QWidget):
 
 def main(argv):
     mainApp = QApplication(argv)
+    mainApp.setOrganizationName('')
+    mainApp.setOrganizationDomain('org.free-and-open-source-software')
+    mainApp.setApplicationName('ODBC Client')
+    mainApp.setApplicationDisplayName(mainApp.tr('ODBC Client'))
+
     mainWindow = QMainWindow()
     mainWindow.setCentralWidget(MainPanel(mainWindow))
     mainWindow.setWindowTitle('ODBC Client')

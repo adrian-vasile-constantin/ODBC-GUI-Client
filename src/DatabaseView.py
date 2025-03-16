@@ -1,7 +1,20 @@
+import os, re
 from crc import Calculator, Crc64
 import pyodbc
 
-from PySide6.QtCore import Qt, QObject, Signal, QSettings, QStandardPaths, QDir, QByteArray
+from PySide6.QtCore import (
+        Qt,
+        QStringConverter,
+        QObject,
+        Signal,
+        QSettings,
+        QStandardPaths,
+        QDir,
+        QByteArray,
+        QFileInfo,
+        QFile,
+        QTextStream)
+from PySide6.QtWidgets import QApplication
 from PySide6.QtGui import QTextOption
 from PySide6.QtWidgets import (
         QWidget,
@@ -68,27 +81,25 @@ class DatabaseView(QObject):
         self.dbTree = QTreeWidget(self.mainSplitter)
         self.dbTree.setAlternatingRowColors(True)
         self.dbTree.setHeaderHidden(True)
-        self.sqlScripts = SQLEditorWidget(self.resultSplitter)
-        self.sqlScripts.setWordWrapMode(QTextOption.NoWrap)
         self.sqlTab = QTabWidget(self.resultSplitter)
+        self.sqlTab.setMovable(True)
+        self.sqlTab.setTabsClosable(True)
+        self.sqlTab.setUsesScrollButtons(True)
         self.resultTab = QTabWidget(self.resultSplitter)
         self.queryResult = QTableWidget(self.resultSplitter)
         self.queryResult.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.sqlOutput = QTextEdit(self.resultTab)
         self.sqlOutput.setReadOnly(True)
 
-        self.sqlTab.addTab(self.sqlScripts, self.mainWindow.tr('SQL', 'tab-title'))
-        self.sqlTab.addTab(QWidget(), '')
         self.resultTab.addTab(self.sqlOutput, self.mainWindow.tr('Output', 'tab-title'))
         self.resultTab.addTab(self.queryResult, self.mainWindow.tr('Result', 'tab-title'))
 
+        self.sqlTab.addTab(QWidget(), '')
         self.nb = QToolButton()
         self.nb.setText('+') # you could set an icon instead of text
         self.nb.setAutoRaise(True)
         # self.nb.clicked.connect(self.new_tab)
         self.sqlTab.tabBar().setTabButton(1, QTabBar.RightSide, self.nb)
-        self.sqlTab.setTabsClosable(True)
-        self.sqlTab.setUsesScrollButtons(True)
         self.resultSplitter.addWidget(self.sqlTab)
         self.resultSplitter.addWidget(self.resultTab)
 
@@ -100,16 +111,6 @@ class DatabaseView(QObject):
 
         self.mainSplitter.setStretchFactor(0, 1)
         self.mainSplitter.setStretchFactor(1, 2)
-
-        wndSize = self.mainWindow.size()
-
-        if wndSize.width() < DatabaseView.MAIN_WINDOW_WIDTH:
-            wndSize.setWidth(DatabaseView.MAIN_WINDOW_WIDTH)
-
-        if wndSize.height() < DatabaseView.MAIN_WINDOW_HEIGHT:
-            wndSize.setHeight(DatabaseView.MAIN_WINDOW_HEIGHT)
-
-        self.mainWindow.resize(wndSize)
 
         readOnly = connection.getinfo(pyodbc.SQL_DATA_SOURCE_READ_ONLY)
 
@@ -140,11 +141,8 @@ class DatabaseView(QObject):
         self.conn = connection
         self.populateDatabaseObjects()
 
-        self.sqlScripts.setFocus()
-        self.sqlScripts.executeStatement.connect(lambda editorWidget, queryStr: self.runQuery(queryStr, False, self.conn, self.sqlOutput, self.queryResult))
-        self.sqlScripts.executeScript.connect(lambda editorWidget, queryStr: self.runQuery(queryStr, True, self.conn, self.sqlOutput, self.queryResult))
-
         self.loadSettings(dataSourceName, extraConnectionString)
+        self.loadSqlScripts()
 
         self.closeView.connect(lambda dbView: dbView.saveSettings())
 
@@ -272,12 +270,78 @@ class DatabaseView(QObject):
                 resultWidget.setRowCount(0)
                 self.resultTab.setCurrentIndex(0)
 
+    def loadSqlFile(self, fileName, sqlEditor):
+        file = QFile(fileName)
+
+        if file.open(QFile.ReadOnly | QFile.Text):
+            fileStream = QTextStream(file)
+            fileStream.setEncoding(QStringConverter.Utf8)
+            fileStream.setAutoDetectUnicode(True)       # Check for Unicode BOM character (Byte Order Mark)
+
+            while not fileStream.atEnd():
+                line = fileStream.readLine()
+                sqlEditor.append(line)
+
+            if file.error() != QFile.NoError:
+                print('Error loading script file {}: '.format(fileName) + file.errorString())
+
+            fileStream = None
+            file.close()
+        else:
+            print('Error loading script file {}: '.format(fileName) + file.errorString())
+
+    def loadSqlScripts(self):
+        self.sqlScriptFiles = self.settings.value('DatabaseView/sqlScriptFiles', defaultValue = [ ], type = list)
+
+        pathPrefix = self.appDataPath + '/' + self.configBasename + '-SQLEditor'
+
+        if self.sqlScriptFiles:
+            self.sqlScripts = [ ]
+
+            for [ index, sqlScript ] in enumerate(self.sqlScriptFiles):
+                sqlScriptFile = QFileInfo(sqlScript).fileName()
+
+                if sqlScriptFile.startswith(pathPrefix):
+                    tabTitle = self.mainWindow.tr('SQL', 'tab-title')
+                else:
+                    tabTitle = QFileInfo(sqlScript).baseName()
+
+                sqlEditor = SQLEditorWidget(self.sqlTab)
+                self.sqlScripts.append(sqlEditor)
+
+                self.loadSqlFile(sqlScript, sqlEditor)
+        else:
+            self.sqlScripts = [ SQLEditorWidget(self.sqlTab) ]
+            self.sqlScriptFiles = [ self.appDataPath + '/' + self.configBasename + '-SQLEditor1.sql' ]
+
+        for [ index, script ] in enumerate(self.sqlScripts):
+            script.setWordWrapMode(QTextOption.NoWrap)
+            script.setAcceptRichText(False)
+            self.sqlTab.insertTab(index, script, self.mainWindow.tr('SQL', 'tab-title'))
+
+        currentScript = self.settings.value('DatabaseView/currentSql', defaultValue = 0, type = int)
+        currentScript = int(currentScript)
+
+        if currentScript < 0 or currentScript >= len(self.sqlScripts):
+            currentScript = 0
+
+        self.sqlTab.setCurrentIndex(currentScript)
+        self.sqlScripts[currentScript].setFocus()
+
+        for script in self.sqlScripts:
+            script.executeStatement.connect(lambda editorWidget, queryStr: self.runQuery(queryStr, False, self.conn, self.sqlOutput, self.queryResult))
+            script.executeScript.connect(lambda editorWidget, queryStr: self.runQuery(queryStr, True, self.conn, self.sqlOutput, self.queryResult))
+
     def loadSettings(self, dataSourceName, extraConnectionString):
-        appDataPath = QStandardPaths.standardLocations(QStandardPaths.AppDataLocation)
+        if 'APPDATA' in os.environ:
+            self.appDataPath = os.environ['APPDATA'].replace('\\', '/') + '/' + QApplication.instance().applicationName()
+        else:
+            self.appDataPath = QStandardPaths.standardLocations(QStandardPaths.AppDataLocation)
 
-        if appDataPath:
-            appDataPath = appDataPath[0];
+            if self.appDataPath:
+                self.appDataPath = self.appDataPath[0];
 
+        if self.appDataPath:
             self.configBasename = ''
 
             if dataSourceName:
@@ -288,21 +352,58 @@ class DatabaseView(QObject):
             if extraConnectionString:
                 self.configBasename += '-' + hex(Calculator(Crc64.CRC64).checksum(extraConnectionString.encode()))[2:].zfill(16)
 
-            self.settings = QSettings(appDataPath + '/ODBC Client/' + self.configBasename + '.ini', QSettings.IniFormat)
+            self.settings = QSettings(self.appDataPath + '/' + self.configBasename + '.ini', QSettings.IniFormat)
 
             mainWindowGeometry = self.settings.value('DatabaseView/geometry', QByteArray())
 
             if mainWindowGeometry:
                 self.mainWindow.restoreGeometry(mainWindowGeometry)
+            else:
+                wndSize = self.mainWindow.size()
+
+                if wndSize.width() < DatabaseView.MAIN_WINDOW_WIDTH:
+                    wndSize.setWidth(DatabaseView.MAIN_WINDOW_WIDTH)
+
+                if wndSize.height() < DatabaseView.MAIN_WINDOW_HEIGHT:
+                    wndSize.setHeight(DatabaseView.MAIN_WINDOW_HEIGHT)
+
+                self.mainWindow.resize(wndSize)
 
             mainWindowState = self.settings.value('DatabaseView/windowState', QByteArray())
 
             if mainWindowState:
                 self.mainWindow.restoreState(mainWindowState)
 
+    def saveSqlFile(self, fileName, sqlEditor):
+        file = QFile(fileName)
+
+        if file.open(QFile.WriteOnly | QFile.Text):
+            fileStream = QTextStream(file)
+            fileStream.generateByteOrderMark()
+            fileStream.setEncoding(QStringConverter.Utf8)
+            fileStream << sqlEditor.toPlainText()
+            fileStream = None
+
+            if file.error()!= QFile.NoError:
+                print('Error saving script file {}: '.format(fileName) + file.errorString())
+
+            file.close()
+        else:
+            print('Error saving script file ' + fileName)
+
+    def saveSqlScripts(self):
+        for [ index, sqlEditor ] in enumerate(self.sqlScripts):
+            if sqlEditor.document().isModified():
+                self.saveSqlFile(self.sqlScriptFiles[index], sqlEditor)
+
+        self.settings.setValue('DatabaseView/currentSql', self.sqlTab.currentIndex())
+        self.settings.setValue('DatabaseView/sqlScriptFiles', self.sqlScriptFiles)
+
     def saveSettings(self):
         if self.settings:
             self.settings.setValue('DatabaseView/geometry', self.mainWindow.saveGeometry())
             self.settings.setValue('DatabaseView/windowState', self.mainWindow.saveState())
+            self.saveSqlScripts()
+            self.settings.sync()
 
 DatabaseView.closeView = Signal(DatabaseView)
