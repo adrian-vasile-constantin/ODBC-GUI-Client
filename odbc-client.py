@@ -84,7 +84,7 @@ def updateDataSource(mainWindow, dataSourceName, connectionString, username, pas
                 QMessageBox.warning(
                         mainWindow,
                         mainWindow.tr('ODBC Client'),
-                        mainWindow.tr('Unable to add new data source {} for driver {}\nTry using the system ODBC Driver Manager instead (Manage DSNs button)').format(dataSourceName, DriverName),
+                        mainWindow.tr('Unable to add new data source {} for driver {}\nTry using the system ODBC Data Source Administrator instead (Manage DSNs button)').format(dataSourceName, DriverName),
                         QMessageBox.Ok)
 
             if credentialsCheckbox:
@@ -117,12 +117,7 @@ def newConnection(mainWindow, dataSourceName, connectionString, username, passwo
         if password:
             kwArgs['PWD'] = password
 
-        connection = pyodbc.connect(connectionString, **kwArgs)
-
-        # rows = connection.cursor().procedures()
-        # for row in rows:
-        #     catalog, schema, name, input_params, output_params, num_result_sets, desc, typ = row[0], row[1], row[2], row[3], row[4], row[5], row[6], row[7]
-        #     print('(Catalog: {}, Schema: {}, Type: {}, Name: {}, ResultSets: {}, In params: {}, Out params: {}, Description: {}'.format(catalog, schema, typ, name, num_result_sets, input_params, output_params, desc))
+        connection = pyodbc.connect(connectionString, autocommit=True, **kwArgs)
 
         global autoLoadCredentials
         global dbViews
@@ -291,7 +286,7 @@ def removeDsn(mainWindow, dsnList):
             result = ODBCInst.SQLConfigDataSource(int(mainWindow.effectiveWinId()), ODBCInst.ODBC_REMOVE_DSN, driverDescription, 'DSN=' + dataSourceName)
 
             if not result:
-                QMessageBox.warning(mainWindow, mainWindow.tr('ODBC Client'), mainWindow.tr('Unable to remove data source'), QMessageBox.Ok)
+                QMessageBox.warning(mainWindow, mainWindow.tr('ODBC Client'), mainWindow.tr('Unable to remove data source.\nTry the system ODBC Data Source Administrator (Manage DSNs ... button)'), QMessageBox.Ok)
 
         newDataSourceList = [ val for key, val in enumerate(pyodbc.dataSources()) ]
 
@@ -311,9 +306,6 @@ def configureDsn(mainWindow, dsnList):
     if driverDescription:
         ODBCInst.Init()
         result = ODBCInst.SQLConfigDataSource(int(mainWindow.effectiveWinId()), ODBCInst.ODBC_CONFIG_DSN, driverDescription, 'DSN=' + dataSourceName)
-
-        # if not result:
-        #     QMessageBox.warning(mainWindow, mainWindow.tr('ODBC Client'), mainWindow.tr('Unable to remove data source'), QMessageBox.Ok)
 
     updateListWidget(dsnList, [ val for key, val in enumerate(pyodbc.dataSources()) ])
 
@@ -351,7 +343,7 @@ def main(argv):
 
     mainWindow = QMainWindow()
     mainWindow.setCentralWidget(MainPanel(mainWindow))
-    mainWindow.setWindowTitle('ODBC Client')
+    mainWindow.setWindowTitle(mainWindow.tr('ODBC Client'))
 
     driverList = QListWidget(mainWindow.centralWidget())
     dsnList = QListWidget(mainWindow.centralWidget())
@@ -371,7 +363,7 @@ def main(argv):
     subgrid = QGridLayout(manualConnectionFrame)
 
     dataSourceName = QLineEdit(manualConnectionFrame)
-    subgrid.addWidget(QLabel(mainApp.tr('Save as:'), manualConnectionFrame), 0, 0)
+    subgrid.addWidget(QLabel(mainApp.tr('Add new DSN:'), manualConnectionFrame), 0, 0)
     subgrid.addWidget(dataSourceName, 1, 0)
     subgrid.setColumnStretch(0, 1)
 
@@ -415,7 +407,7 @@ def main(argv):
     grid.addWidget(QLabel(mainApp.tr('Installed ODBC Drivers:'), mainWindow.centralWidget()), 2, 0)
     grid.addWidget(driverList, 3, 0, 2, 1)
 
-    grid.addWidget(QLabel(mainApp.tr('Data Sources:'), mainWindow.centralWidget()), 2, 2)
+    grid.addWidget(QLabel(mainApp.tr('Data Source Names (DSNs):'), mainWindow.centralWidget()), 2, 2)
     grid.addWidget(dsnList, 3, 2)
 
     subgrid = QGridLayout()

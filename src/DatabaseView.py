@@ -94,12 +94,6 @@ class DatabaseView(QObject):
         self.resultTab.addTab(self.sqlOutput, self.mainWindow.tr('Output', 'tab-title'))
         self.resultTab.addTab(self.queryResult, self.mainWindow.tr('Result', 'tab-title'))
 
-        self.sqlTab.addTab(QWidget(), '')
-        self.nb = QToolButton()
-        self.nb.setText('+') # you could set an icon instead of text
-        self.nb.setAutoRaise(True)
-        # self.nb.clicked.connect(self.new_tab)
-        self.sqlTab.tabBar().setTabButton(1, QTabBar.RightSide, self.nb)
         self.resultSplitter.addWidget(self.sqlTab)
         self.resultSplitter.addWidget(self.resultTab)
 
@@ -114,13 +108,13 @@ class DatabaseView(QObject):
 
         readOnly = connection.getinfo(pyodbc.SQL_DATA_SOURCE_READ_ONLY)
 
-        dbmsName = connection.getinfo(pyodbc.SQL_DBMS_NAME)
-        dbmsVersion = connection.getinfo(pyodbc.SQL_DBMS_VER)
+        self.dbmsName = connection.getinfo(pyodbc.SQL_DBMS_NAME)
+        self.dbmsVersion = connection.getinfo(pyodbc.SQL_DBMS_VER)
 
-        versionMatch = re.match('^([0-9.]+)\\s+([^0-9]+)\\s+([0-9.]+)$', dbmsVersion)   # '11.00.0007 Mimer SQL 10.0.7'
+        versionMatch = re.match('^([0-9.]+)\\s+([^0-9]+)\\s+([0-9.]+)$', self.dbmsVersion)   # '11.00.0007 Mimer SQL 10.0.7'
 
-        if dbmsName == 'Mimer SQL' and versionMatch and versionMatch.group(2) == dbmsName:
-            dbmsVersion = versionMatch.group(3)
+        if self.dbmsName == 'Mimer SQL' and versionMatch and versionMatch.group(2) == self.dbmsName:
+            self.dbmsVersion = versionMatch.group(3)
 
         if dataSourceName:
             if extraConnectionString:
@@ -138,7 +132,7 @@ class DatabaseView(QObject):
             else:
                 title = dbName
 
-        title += ' - ' + dbmsName + ' ' + dbmsVersion
+        title += ' - ' + self.dbmsName + ' ' + self.dbmsVersion
 
         self.mainWindow.setWindowTitle(title)
 
@@ -152,6 +146,16 @@ class DatabaseView(QObject):
         self.closeView.connect(lambda dbView: dbView.saveSettings())
 
         self.mainWindow.show()
+
+        self.sqlTab.tabBar().addTab('')
+        self.nb = QToolButton()
+        self.nb.setText('+') # you could set an icon instead of text
+        self.nb.setAutoRaise(True)
+        # self.nb.clicked.connect(self.new_tab)
+        lastTabIndex = self.sqlTab.tabBar().count() - 1
+        self.sqlTab.tabBar().setTabButton(lastTabIndex, QTabBar.LeftSide,  None)
+        self.sqlTab.tabBar().setTabButton(lastTabIndex, QTabBar.RightSide, None)
+        self.sqlTab.tabBar().setTabButton(lastTabIndex, QTabBar.RightSide, self.nb)
 
     WIDGET_TYPE_STATIC_LABEL = 0
     WIDGET_TYPE_CATALOG = 1
@@ -229,9 +233,11 @@ class DatabaseView(QObject):
 
         listContainer = [ ]
 
-        rows = self.conn.cursor().procedures()
-        for row in rows:
-            self.addProcToDbTree(row, listContainer)
+        if self.dbmsName != 'DBASE':
+            rows = self.conn.cursor().procedures()
+
+            for row in rows:
+                self.addProcToDbTree(row, listContainer)
 
         self.expandDbTree(self.containerNodes)
 
@@ -254,6 +260,10 @@ class DatabaseView(QObject):
                 columnRange = range(len(cursor.description))
 
                 for row in cursor:
+                    if rowNumber > 1000:
+                        self.resultTab.setTabText(1, self.mainWindow.tr('Result rows 1-1000', 'tab-title'))
+                        break
+
                     if resultWidget.rowCount() <= rowNumber:
                         resultWidget.insertRow(rowNumber)
 
@@ -262,10 +272,7 @@ class DatabaseView(QObject):
 
                     rowNumber = rowNumber + 1
 
-                    if rowNumber >= 1000:
-                        break
-
-                resultWidget.setRowCount(rowNumber)
+                resultWidget.setRowCount(rowNumber if rowNumber <= 1000 else 1000)
 
             if cursor.description:
                 self.resultTab.setCurrentIndex(1)
@@ -317,6 +324,7 @@ class DatabaseView(QObject):
                 self.loadSqlFile(sqlScript, sqlEditor)
         else:
             self.sqlScripts = [ SQLEditorWidget(self.sqlTab) ]
+            self.sqlScripts[0].document().setModified(True)
             self.sqlScriptFiles = [ self.appDataPath + '/' + self.configBasename + '-SQLEditor1.sql' ]
 
         for [ index, script ] in enumerate(self.sqlScripts):
