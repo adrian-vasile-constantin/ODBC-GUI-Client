@@ -36,7 +36,7 @@ python odbc-client.py
 ```
 also from the main project directory.
 
-To run a query like a SELECT in the editor, you should select the entire text of the query and press Ctrl + Enter.
+To run a query like a SELECT in the editor, you should select the text of the query and press Ctrl + Enter.
 
 ## Screenshots
 ### Connection dialog
