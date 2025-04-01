@@ -18,7 +18,7 @@ On Windows you should install [python](https://www.python.org/downloads/), then 
 ```sh
 pip install PySide6 Traits pyodbc keyring crc
 ```
-For the pip command above to be available, you must check the option to install it during installation of python, and you should also check the option to add python to the PATH environment variable. `pip` command often recommends setting up a virtual environment for the above installation, but I always found it easier to use the direct installation, and running the `pip` command as Administrator for this purpose.
+For the `pip` command above to be available, you must check the option to install it during installation of python, and you should also check the option to add python to the PATH environment variable. `pip` command often recommends setting up a virtual environment for the above installation, but I always found it easier to use the direct installation, and running the `pip` command as Administrator for this purpose.
 
 On Linux systems (not implemented) using the distribution packages is preferred over the python `pip` packages. For example if your distribution uses rpms:
 ```sh
@@ -35,6 +35,8 @@ from the project directory, or if that does not work use:
 python odbc-client.py
 ```
 also from the main project directory.
+
+To run a query like a SELECT in the editor, you should select the entire text of the query and press Ctrl + Enter.
 
 ## Screenshots
 ### Connection dialog
