@@ -1,4 +1,4 @@
-import sys
+import sys, ctypes
 from PySide6 import QtGui
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
@@ -18,6 +18,7 @@ import traits
 import pyodbc
 import keyring
 
+from src.ODBC import ODBC
 from src.ODBCInst import ODBCInst
 from src.DatabaseView import DatabaseView
 
@@ -77,18 +78,17 @@ def updateDataSource(mainWindow, dataSourceName, connectionString, username, pas
             connectionString = 'DSN=' + dataSourceName + ';' + connectionString
             connectionString = connectionString.rstrip(';')
 
-            ODBCInst.Init()
             addDsnSuccess = ODBCInst.SQLConfigDataSource(int(mainWindow.effectiveWinId()), ODBCInst.ODBC_ADD_DSN, DriverName, connectionString.replace(';', '\000') + '\000\000')
 
             if not addDsnSuccess:
                 QMessageBox.warning(
                         mainWindow,
                         mainWindow.tr('ODBC Client'),
-                        mainWindow.tr('Unable to add new data source {} for driver {}\nTry using the system ODBC Data Source Administrator instead (Manage DSNs button)').format(dataSourceName, DriverName),
+                        mainWindow.tr('Unable to add new data source {} with driver {}\nTry using the system ODBC Data Source Administrator instead (Manage DSNs button)').format(dataSourceName, DriverName),
                         QMessageBox.Ok)
 
             if credentialsCheckbox:
-                keyring.set_password('odbc-client:' + dataSourceName, username, password)
+                keyring.set_password('odbc:' + dataSourceName, username, password)
 
 dbViews = [ ]
 autoLoadCredentials = True
@@ -126,7 +126,7 @@ def newConnection(mainWindow, dataSourceName, connectionString, username, passwo
             dataSourceName = readDataSourceName(connectionString)
 
             if dataSourceName:
-                keyring.set_password('odbc-client:' + dataSourceName, username, password)
+                keyring.set_password('odbc:' + dataSourceName, username, password)
 
         dsn, extraConnectionString = splitConnectionString(connectionString)
 
@@ -209,7 +209,7 @@ def loadCredentials(dsnList, usernameEdit, passwordEdit):
 
     if autoLoadCredentials and dsnList.isEnabled():
         if dsnList.selectedItems():
-            credential = keyring.get_credential('odbc-client:' + dsnList.currentItem().text(), None)
+            credential = keyring.get_credential('odbc:' + dsnList.currentItem().text(), None)
 
             if credential:
                 usernameEdit.setText(credential.username)
@@ -267,7 +267,6 @@ def updateListWidget(listWidget, newItemList):
         listWidget.addItems(newItemList)
 
 def odbcAdministrator(mainWindow, driverList, dsnList):
-    ODBCInst.Init()
 
     if not ODBCInst.SQLManageDataSources(int(mainWindow.effectiveWinId())):
         QMessageBox.warning(mainWindow, mainWindow.tr('ODBC Client'), mainWindow.tr('Unable to run ODBC Data Source Administrator'), QMessageBox.Ok)
@@ -282,7 +281,6 @@ def removeDsn(mainWindow, dsnList):
         driverDescription = pyodbc.dataSources()[dataSourceName]
 
         if driverDescription:
-            ODBCInst.Init()
             result = ODBCInst.SQLConfigDataSource(int(mainWindow.effectiveWinId()), ODBCInst.ODBC_REMOVE_DSN, driverDescription, 'DSN=' + dataSourceName)
 
             if not result:
@@ -293,10 +291,10 @@ def removeDsn(mainWindow, dsnList):
         updateListWidget(dsnList, newDataSourceList)
 
         if not dataSourceName in newDataSourceList:
-            credential = keyring.get_credential('odbc-client:' + dataSourceName, None)
+            credential = keyring.get_credential('odbc:' + dataSourceName, None)
 
             if credential:
-                keyring.delete_password('odbc-client:' + dataSourceName, credential.username)
+                keyring.delete_password('odbc:' + dataSourceName, credential.username)
 
 def configureDsn(mainWindow, dsnList):
     dataSourceName = dsnList.currentItem().text()
@@ -304,7 +302,6 @@ def configureDsn(mainWindow, dsnList):
     driverDescription = pyodbc.dataSources()[dataSourceName]
 
     if driverDescription:
-        ODBCInst.Init()
         result = ODBCInst.SQLConfigDataSource(int(mainWindow.effectiveWinId()), ODBCInst.ODBC_CONFIG_DSN, driverDescription, 'DSN=' + dataSourceName)
 
     updateListWidget(dsnList, [ val for key, val in enumerate(pyodbc.dataSources()) ])
@@ -334,6 +331,68 @@ class MainPanel(QWidget):
 
         super().keyPressEvent(ev)
 
+def enumerateDataSourceNames(hEnv, enumerationType, targetDict):
+    dsn_names = [ ]
+    dsn_drivers = [ ]
+
+    dsn_name_len = ODBC.SQLSMALLINT()
+    driver_name_len = ODBC.SQLSMALLINT()
+
+    sqlResult = ODBC.SQLDataSources(hEnv, enumerationType, None, 0, ctypes.byref(dsn_name_len), None, 0, ctypes.byref(driver_name_len))
+
+    while sqlResult == ODBC.SQL_SUCCESS or sqlResult == ODBC.SQL_SUCCESS_WITH_INFO:
+        dsn_names.append(ctypes.create_unicode_buffer(dsn_name_len.value + 1))
+        dsn_drivers.append(ctypes.create_unicode_buffer(driver_name_len.value + 1))
+        sqlResult = ODBC.SQLDataSources(hEnv, ODBC.SQL_FETCH_NEXT, None, 0, ctypes.byref(dsn_name_len), None, 0, ctypes.byref(driver_name_len))
+
+    if sqlResult != ODBC.SQL_NO_DATA:
+        print('Error {} enumerating Data Source Names'.format(sqlResult), file = sys.stderr)
+    else:
+        index = 0
+        sqlResult = ODBC.SQLDataSources(hEnv, enumerationType, dsn_names[index] , ctypes.sizeof(dsn_names[index]), ctypes.byref(dsn_name_len), dsn_drivers[index], ctypes.sizeof(dsn_drivers[index]), ctypes.byref(driver_name_len))
+
+        while sqlResult == ODBC.SQL_SUCCESS or sqlResult == ODBC.SQL_SUCCESS_WITH_INFO:
+            targetDict[dsn_names[index].value[:dsn_name_len.value]] = dsn_drivers[index].value[:driver_name_len.value]
+            index = index + 1
+
+            if index < len(dsn_names):
+                sqlResult = ODBC.SQLDataSources(hEnv, ODBC.SQL_FETCH_NEXT, dsn_names[index] , ctypes.sizeof(dsn_names[index]), ctypes.byref(dsn_name_len), dsn_drivers[index], ctypes.sizeof(dsn_drivers[index]), ctypes.byref(driver_name_len))
+            else:
+                break
+
+def dataSourceNames():
+    hEnv = ODBC.SQLHANDLE()
+
+    sqlReturn = ODBC.SQLAllocHandle(ODBC.SQL_HANDLE_ENV, ODBC.SQL_NULL_HANDLE, ctypes.byref(hEnv))
+
+    if sqlReturn != ODBC.SQL_SUCCESS and sqlReturn != ODBC.SQL_SUCCESS_WITH_INFO:
+        print('Error allocating ODBC environment handle\n', file = sys.stderr)
+    else:
+        try:
+            sqlReturn = ODBC.SQLSetEnvAttr(hEnv, ODBC.SQL_ATTR_ODBC_VERSION, ctypes.cast(ODBC.SQL_OV_ODBC3_80, ODBC.SQLPOINTER), 0)
+
+            if sqlReturn != ODBC.SQL_SUCCESS and sqlReturn != ODBC.SQL_SUCCESS_WITH_INFO:
+                print('Error {} setting ODBC environment attributes\n'.format(sqlReturn), file = sys.stderr)
+            else:
+                result = { 'user': { }, 'system': { } }
+
+                enumerateDataSourceNames(hEnv, ODBC.SQL_FETCH_FIRST_USER, result['user'])
+
+                for name, driver in result['user'].items():
+                    print('User DSN: {}, Driver: {}'.format(name, driver))
+
+                enumerateDataSourceNames(hEnv, ODBC.SQL_FETCH_FIRST_SYSTEM, result['system'])
+
+                for name, driver in result['system'].items():
+                    print('System DSN: {}, Driver: {}'.format(name, driver))
+
+                return result
+        finally:
+            sqlReturn = ODBC.SQLFreeHandle(ODBC.SQL_HANDLE_ENV, hEnv)
+
+            if sqlReturn != ODBC.SQL_SUCCESS and sqlReturn != ODBC.SQL_SUCCESS_WITH_INFO:
+                print('Error deallocating ODBC environment handle\n', file = sys.stderr)
+
 def main(argv):
     mainApp = QApplication(argv)
     mainApp.setOrganizationName('')
@@ -354,6 +413,8 @@ def main(argv):
 
     driverList.addItems(pyodbc.drivers())
     dsnList.addItems(val for key, val in enumerate(pyodbc.dataSources()))
+
+    dataSourceNames()
 
     grid = QGridLayout(mainWindow.centralWidget())
 

@@ -1,6 +1,7 @@
 import platform
 from ctypes import (
         cdll,
+        CDLL,
         windll,
         c_bool,
         c_char,
@@ -53,6 +54,10 @@ class ODBCInst:
             cls.SQLConfigDataSource.argtypes = [ c_void_p, c_ushort, c_wchar_p, c_wchar_p ]
             cls.SQLConfigDataSource.restype = c_int
 
+            # BOOL SQLManageDataSources(HWND hwnd);
+
             cls.SQLManageDataSources = cls.odbcInst.SQLManageDataSources
             cls.SQLManageDataSources.argtypes = [ c_void_p ]
             cls.SQLManageDataSources.restype = c_int
+
+ODBCInst.Init()
