@@ -13,20 +13,22 @@ All major databases publish an ODBC driver for their product. Microsoft for exam
 Client-server databases let you install the ODBC driver (as a client only) without installing the main product (the database server). In this case you can use the
 driver to connect to a remote server, by specifying the server hostname in the connection string.
 
-## Instalation
-On Windows you should install [python](https://www.python.org/downloads/), then install PySide6, Traits, pyodbc, keyring and crc with commands like
+## Installation
+On Windows you should install [python](https://www.python.org/downloads/) (latest version), then install PySide6, Traits, pyodbc, keyring and crc with commands like:
 ```sh
-pip install PySide6 Traits pyodbc keyring crc
+python -m pip install PySide6 Traits pyodbc keyring crc
 ```
-For the `pip` command above to be available, you must check the option to install it during installation of python, and you should also check the option to add python to the PATH environment variable. `pip` command often recommends setting up a virtual environment for the above installation, but I always found it easier to use the direct installation, and running the `pip` command as Administrator for this purpose.
+You may want to check the option to add python to the PATH environment variable, during installation of python. `pip` command often recommends setting up a virtual environment for the above installation, but I always found it easier to use the direct installation, and running the `pip` command above as Administrator for this purpose.
 
 On Linux systems (not implemented) using the distribution packages is preferred over the python `pip` packages. For example if your distribution uses rpms:
 ```sh
 dnf install python3-pyside6 python3-Traits python3-pyodbc
 ```
-if your distribution does not have a package (like python3-pyside6), you can still use the `pip` command above to install it.
+if your distribution does not have one of the packages (like python3-pyside6), you can still use the `pip` command above to install it.
 
-To start the application you should run the odbc-client.py script. On Windows if python is on PATH and is configured to run .py scripts, you can just say
+To start the application you should run the `odbc-client.py` script.
+
+On Windows if python launcher is installed, or python is on PATH and is configured to run .py scripts, you can just say:
 ```cmd
 odbc-client
 ```
