@@ -7,7 +7,7 @@ Use this tool to connect to a database or a data source, using an ODBC connectio
 
 Some aditional features like list of existing functions, tables and views are also made available if provided by the data source.
 
-If you have the connection details (like a database name, server name, username, etc) you can build a connection string with these details, according to the documentation of the ODBC driver provided by the database. The resulting connection string can be saved with a simple name (as a data source name DSN) amd used for reconnecting later. Avoid writing the username and password inline in the connection string. Instead, you should use the dedicated username and password fields (see image bellow, these fields use the keyring to save the sensitive information).
+If you have the connection details (like a database name, server name, username, etc) you can build a connection string with these details, according to the documentation of the ODBC driver provided by the database. The resulting connection string can be saved with a simple name (as a data source name DSN) and used for reconnecting the same way later. Usually you should avoid writing the username and password inline in the connection string. Instead, you should use the dedicated username and password fields (see image bellow, these fields use the keyring to save the sensitive information).
 
 All major databases (commercial and open-source) publish an ODBC driver for their product. Microsoft for example makes available ODBC drivers for reading Excel spreadsheets or Access databases,
 (included with Office), SQL Server databases, even the old FoxPro had a driver, but you should have the specific product installed first.
