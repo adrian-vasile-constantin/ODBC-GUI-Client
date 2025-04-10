@@ -24,7 +24,7 @@ python -m pip install PySide6 Traits pyodbc keyring crc
 ```
 You may want to check the option to add python to the PATH environment variable, during installation of python. `pip` command (`python -m pip`) often recommends setting up a virtual environment for the above installation, but I always found it easier to use the direct installation, and running the `pip` command above as Administrator for this purpose.
 
-On Linux systems (not implemented) using the packages provided by Linux is preferred over the python `pip` packages. For example if your distribution uses rpms:
+On Linux systems (not implemented) using the packages provided by Linux is preferred over the python `pip` packages. For example if your Linux distribution uses rpms:
 ```sh
 dnf install python3-pyside6 python3-Traits python3-pyodbc
 ```
