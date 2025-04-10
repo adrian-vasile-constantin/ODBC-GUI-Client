@@ -51,7 +51,7 @@ To run a SQL query like a SELECT in the editor, you should select the text of th
 !["Connect to existing DSN for MS SQL Server Express edition"](screenshots/ConnectionDialog2.png "Connect to DSN")
 ### Query window
 !["See database objects in a tree and run simple query on the MS SQL Server connection"](screenshots/QueryWindow.png "See database tables and run new queries")
-In this example on the left side we can see a tree with available tables in the database, and available SQL functions and views.
+In this example on the left side we can see a tree with available tables in the database, and available SQL procedures / functions and views.
 
 ## Sample application only
-This application is only meant for learning and practicing Qt and python bindings, so it is not a full-blown database client with all possible features ('though I wish it could be).
+This application is only meant for learning and practicing Qt and python bindings, so it is not a full-blown database client with all possible features (though I wish it could be).
