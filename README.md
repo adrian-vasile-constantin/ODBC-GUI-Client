@@ -49,4 +49,4 @@ To run a query like a SELECT in the editor, you should select the text of the qu
 !["See database objects in a tree and run simple query on the MS SQL Server connection"](screenshots/QueryWindow.png "See database tables and run new queries")
 
 ## Sample application only
-This application is only meant for learning and parcticing Qt and python bindings, so it is not a full-blown database client with all possible features ('though I wish it could be).
+This application is only meant for learning and practicing Qt and python bindings, so it is not a full-blown database client with all possible features ('though I wish it could be).
