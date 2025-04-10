@@ -1,17 +1,17 @@
 # ODBC Client
-Windows GUI client application for ODBC databases (using Qt and python)
+GUI client application for ODBC databases (built using Qt and python)
 
-Conect to a database or a data source using an ODBC connection string or an ODBC data source name (DSN), and test and run any SQL queries supported by the data source.
+Connect to a database or a data source using an ODBC connection string or an ODBC data source name (DSN), and test and run SQL queries supported by the data source.
 
-Some aditional features like list of existing functions, tables and views are also available (some drivers return an empty list if the product does not support views for example).
+Some aditional features like list of existing functions, tables and views are also available if provided by the data source.
 
-If you have the connection details like a database name, server hostname, username, etc, you can build a connection string according to the documentation of the ODBC driver provided by the database. The resulting connection string can be saved as a data source name (DSN) for reconnecting later with the same connection information. Avoid writing the username and password inline in the connection string. Instead, you should also use the dedicated username and password fields to save the username and password (these fields use the keyring to save the sensitive information).
+If you have the connection details like a database name, server hostname, username, etc, you can build a connection string according to the documentation of the ODBC driver provided by the database. The resulting connection string can be saved as a data source name (DSN) for reconnecting later. Avoid writing the username and password inline in the connection string. Instead, you should use the dedicated username and password fields (these fields use the keyring to save the sensitive information).
 
-All major databases publish an ODBC driver for their product. Microsoft for example makes available ODBC drivers for reading Excel spreadsheets or Access databases,
+All major databases (commercial and open-source) publish an ODBC driver for their product. Microsoft for example makes available ODBC drivers for reading Excel spreadsheets or Access databases,
 (included with Office), SQL Server databases, even the old FoxPro had a driver, but you should have the specific product installed first.
 
-Client-server databases let you install the ODBC driver (as a client only) without installing the main product (the database server). In this case you can use the
-driver to connect to a remote server, by specifying the server hostname in the connection string.
+Client-server databases also let you install the ODBC driver (as a client only) without installing the main product (the database server). In this case you can use the
+driver to connect to a remote server, by specifying the server in the connection string.
 
 ## Installation
 On Windows you should install [python](https://www.python.org/downloads/) (latest version), then install PySide6, Traits, pyodbc, keyring and crc with commands like:
