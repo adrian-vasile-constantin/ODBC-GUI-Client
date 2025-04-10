@@ -3,7 +3,7 @@ GUI client application for ODBC databases (built using Qt and python).
 
 ODBC or [Open Database Connectivity](https://en.wikipedia.org/wiki/Open_Database_Connectivity) is an open standard that allows programs to access any kind of data source (database) that supports ODBC. Since 1995 this is a part of the SQL standard, called SQL/CLI ([Call Level Interface](https://en.wikipedia.org/wiki/Call_Level_Interface)).
 
-Use this tool to connect to a database or a data source, using an ODBC connection string or an ODBC data source name (DSN), and to test and run SQL statements (queries) supported by the data source. You can use SQL queries to search for records of interest in a table, or use other SQL statements to create and modify records and tables (populate the database) if you need to.
+Use this tool to connect to a database or a data source, using an ODBC connection string or an ODBC data source name (DSN), and to test and run any SQL statements (queries) supported by the data source. You can use SQL queries to search for records of interest in a table, or use other SQL statements to create and modify records and tables (populate the database) if you need to.
 
 Some aditional features like list of existing functions, tables and views are also made available if provided by the data source.
 
