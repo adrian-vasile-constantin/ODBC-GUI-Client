@@ -12,7 +12,7 @@ If you have the connection details (like a database name, server name, username,
 All major databases (commercial and open-source) publish an ODBC driver for their product. Microsoft for example makes available ODBC drivers for reading Excel spreadsheets or Access databases,
 (included with Office), SQL Server databases, even the old FoxPro had a driver, but you should have the specific product installed first.
 
-You should install the ODBC drivers that match your data source or database, or the drivers provided by your database product / vendor.
+You should install the ODBC driver that matches your data source or database, or the driver provided by your database product / vendor.
 
 Client-server databases also let you install the ODBC driver (as a client only) without installing the main product (the database server). In this case you can use the
 driver to connect to a remote server, by specifying the server in the connection string.
